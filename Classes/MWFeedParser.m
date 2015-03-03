@@ -63,7 +63,7 @@
 
 		// Defaults
 		feedParseType = ParseTypeFull;
-		connectionType = ConnectionTypeSynchronously;
+        connectionType = ConnectionTypeAsynchronously;
 		
 		// Date Formatters
 		// Good info on internet dates here: http://developer.apple.com/iphone/library/qa/qa2010/qa1480.html
@@ -399,7 +399,7 @@
 - (void)connectionDidFinishLoading:(NSURLConnection *)connection {
 	
 	// Succeed
-	MWLog(@"MWFeedParser: Connection successful... received %d bytes of data", [asyncData length]);
+	MWLog(@"MWFeedParser: Connection successful... received %lu bytes of data", (unsigned long)[asyncData length]);
 	
 	// Parse
 	if (!stopped) [self startParsingData:asyncData textEncodingName:self.asyncTextEncodingName];
@@ -460,6 +460,7 @@
             if ([qualifiedName isEqualToString:@"rss"]) feedType = FeedTypeRSS; 
             else if ([qualifiedName isEqualToString:@"rdf:RDF"]) feedType = FeedTypeRSS1;
             else if ([qualifiedName isEqualToString:@"feed"]) feedType = FeedTypeAtom;
+            else if ([qualifiedName isEqualToString:@"opml"]) feedType = FeedTypeOPML;
             else {
             
                 // Invalid format so fail
@@ -474,6 +475,7 @@
         if (feedParseType != ParseTypeItemsOnly) {
             if ((feedType == FeedTypeRSS  && [currentPath isEqualToString:@"/rss/channel"]) ||
                 (feedType == FeedTypeRSS1 && [currentPath isEqualToString:@"/rdf:RDF/channel"]) ||
+                (feedType == FeedTypeOPML && [currentPath isEqualToString:@"/opml"]) ||
                 (feedType == FeedTypeAtom && [currentPath isEqualToString:@"/feed"])) {
                 return;
             }
@@ -482,6 +484,7 @@
         // Entering new item element
         if ((feedType == FeedTypeRSS  && [currentPath isEqualToString:@"/rss/channel/item"]) ||
             (feedType == FeedTypeRSS1 && [currentPath isEqualToString:@"/rdf:RDF/item"]) ||
+            (feedType == FeedTypeOPML && [currentPath isEqualToString:@"/opml/body/outline"]) ||
             (feedType == FeedTypeAtom && [currentPath isEqualToString:@"/feed/entry"])) {
 
             // Send off feed info to delegate
@@ -641,6 +644,37 @@
                     
                     break;
                 }
+                case FeedTypeOPML: {
+                    
+                    // Specifications
+                    // http://web.resource.org/rss/1.0/spec
+                    // http://web.resource.org/rss/1.0/modules/dc/
+                    
+                    // Item
+                    if (!processed) {
+                        if ([currentPath isEqualToString:@"/opml/body/outline"]) {
+                            item.title = [currentElementAttributes objectForKey:@"text"];
+                            item.link = [currentElementAttributes objectForKey:@"xmlUrl"];
+                            processed = YES;
+                            [self dispatchFeedItemToDelegate];
+                        }
+                    }
+                    
+                    
+                    
+                    // Info
+                    if (!processed && feedParseType != ParseTypeItemsOnly) {
+                        
+                        if ([currentPath isEqualToString:@"opml/head/title"]) {
+                            MWLog(@"found a head element");
+                            if (processedText.length > 0) info.title = processedText; processed = YES; }
+//                        else if ([currentPath isEqualToString:@"/rdf:RDF/channel/description"]) { if (processedText.length > 0) info.summary = processedText; processed = YES; }
+//                        else if ([currentPath isEqualToString:@"/rdf:RDF/channel/link"]) { if (processedText.length > 0) info.link = processedText; processed = YES; }
+                    }
+                    
+                    break;
+                }
+
                 case FeedTypeAtom: {
                     
                     // Specifications
@@ -658,6 +692,8 @@
                         else if ([currentPath isEqualToString:@"/feed/entry/dc:creator"]) { if (processedText.length > 0) item.author = processedText; processed = YES; }
                         else if ([currentPath isEqualToString:@"/feed/entry/published"]) { if (processedText.length > 0) item.date = [NSDate dateFromInternetDateTimeString:processedText formatHint:DateFormatHintRFC3339]; processed = YES; }
                         else if ([currentPath isEqualToString:@"/feed/entry/updated"]) { if (processedText.length > 0) item.updated = [NSDate dateFromInternetDateTimeString:processedText formatHint:DateFormatHintRFC3339]; processed = YES; }
+                        else if ([currentPath isEqualToString:@"/feed/entry/im:image"]) {
+                            if ([[currentElementAttributes valueForKey:@"height"]  isEqual: @"55"]) item.imageUrl = processedText; processed = YES; }
                     }
                     
                     // Info
@@ -679,8 +715,8 @@
         // If end of an item then tell delegate
         if (!processed) {
             if (((feedType == FeedTypeRSS || feedType == FeedTypeRSS1) && [qName isEqualToString:@"item"]) ||
-                (feedType == FeedTypeAtom && [qName isEqualToString:@"entry"])) {
-                
+                (feedType == FeedTypeAtom && [qName isEqualToString:@"entry"]) || (feedType == FeedTypeOPML && [qName isEqualToString:@"outline"])) {
+                MWLog(@"reached end of element");
                 // Dispatch item to delegate
                 [self dispatchFeedItemToDelegate];
                 
@@ -691,6 +727,7 @@
         if (!processed) {
             if ((feedType == FeedTypeRSS && [qName isEqualToString:@"rss"]) ||
                 (feedType == FeedTypeRSS1 && [qName isEqualToString:@"rdf:RDF"]) ||
+                (feedType == FeedTypeRSS1 && [qName isEqualToString:@"opml"]) ||
                 (feedType == FeedTypeAtom && [qName isEqualToString:@"feed"])) {
                 
                 // Document ending so if we havent sent off feed info yet, do so

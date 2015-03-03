@@ -32,7 +32,7 @@
 #import "MWFeedItem.h"
 
 // Debug Logging
-#if 0 // Set to 1 to enable debug logging
+#if 1 // Set to 1 to enable debug logging
 #define MWLog(x, ...) NSLog(x, ## __VA_ARGS__);
 #else
 #define MWLog(x, ...)
@@ -52,7 +52,7 @@
 // Types
 typedef enum { ConnectionTypeAsynchronously, ConnectionTypeSynchronously } ConnectionType;
 typedef enum { ParseTypeFull, ParseTypeItemsOnly, ParseTypeInfoOnly } ParseType;
-typedef enum { FeedTypeUnknown, FeedTypeRSS, FeedTypeRSS1, FeedTypeAtom } FeedType;
+typedef enum { FeedTypeUnknown, FeedTypeRSS, FeedTypeRSS1, FeedTypeAtom, FeedTypeOPML } FeedType;
 
 // Delegate
 @protocol MWFeedParserDelegate <NSObject>
