@@ -9,7 +9,7 @@ Pod::Spec.new do |s|
     s.homepage = 'https://github.com/mwaterfall/MWFeedParser'
     s.author = { 'Michael Waterfall' => 'michaelwaterfall@gmail.com' }
     s.source = {
-        :git => 'https://github.com/mwaterfall/MWFeedParser.git',
+        :git => 'https://github.com/wordisborn/MWFeedParser.git',
         :tag => '1.0.1'
     }
     s.platform = :ios, '5.1.1'
